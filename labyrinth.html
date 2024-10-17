@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carte et Labyrinthe avec trésor</title>
+    <title>Labyrinthe</title>
     <style>
         body, html {
             margin: 0;
@@ -22,7 +22,6 @@
             left: 50px;
             width: 400px;
             height: 400px;
-            border: 5px solid rgb(241, 183, 75);
             z-index: 10;
         }
 
@@ -48,7 +47,7 @@
     const mapCtx = mapCanvas.getContext("2d");
     const labyrinthCanvas = document.getElementById("labyrinthCanvas");
     const labyrinthCtx = labyrinthCanvas.getContext("2d");
-    
+
     const mapWidth = window.innerWidth;
     const mapHeight = window.innerHeight;
     mapCanvas.width = mapWidth;
@@ -64,6 +63,12 @@
 
     const kaamelott = { x: 1070, y: 520 };
     const labyrintheEntree = { x: 850, y: 150 };
+
+    const buissonImg = new Image();
+    buissonImg.src = 'buisson.png'; // Image pour les murs
+
+    let entree = {x: 0, y: 0}; // Coordonnées de l'entrée
+    let sortie = {x: 0, y: 0}; // Coordonnées de la sortie
 
     // Générer un labyrinthe avec l'algorithme de backtracking
     function generateMaze(x, y) {
@@ -84,6 +89,19 @@
                 generateMaze(nx, ny);
             }
         }
+    }
+
+    // Placer l'entrée et la sortie du labyrinthe de manière aléatoire
+    function setRandomEntranceAndExit() {
+        // Entrée aléatoire sur le premier rang
+        entree.x = 0;
+        entree.y = Math.floor(Math.random() * cols);
+        maze[entree.x][entree.y] = 0; // Pas de mur à l'entrée
+
+        // Sortie aléatoire sur le dernier rang
+        sortie.x = rows - 1;
+        sortie.y = Math.floor(Math.random() * cols);
+        maze[sortie.x][sortie.y] = 0; // Pas de mur à la sortie
     }
 
     // Dessiner les points sur la carte
@@ -148,7 +166,7 @@
         do {
             treasureX = Math.floor(Math.random() * rows);
             treasureY = Math.floor(Math.random() * cols);
-        } while (maze[treasureX][treasureY] === 1); // Ne placer que dans les chemins
+        } while (maze[treasureX][treasureY] === 1 || (treasureX === entree.x && treasureY === entree.y) || (treasureX === sortie.x && treasureY === sortie.y)); // Ne placer que dans les chemins, éviter l'entrée et la sortie
         return {x: treasureX, y: treasureY};
     }
 
@@ -181,11 +199,24 @@
     // Dessiner le labyrinthe
     function drawMaze() {
         labyrinthCtx.clearRect(0, 0, labyrinthCanvas.width, labyrinthCanvas.height);
-        for (let i = 0; i < rows; i++) {
-            for (let j = 0; j < cols; j++) {
-                labyrinthCtx.fillStyle = maze[i][j] === 1 ? "green" : "white";
-                labyrinthCtx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+
+        // Attendre que l'image du buisson soit chargée avant de dessiner le labyrinthe
+        buissonImg.onload = function() {
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (maze[i][j] === 1) {
+                        labyrinthCtx.drawImage(buissonImg, j * cellSize, i * cellSize, cellSize, cellSize);
+                    } else {
+                        labyrinthCtx.fillStyle = "white";
+                        labyrinthCtx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+                    }
+                }
             }
+        };
+
+        // Si l'image est déjà chargée, dessiner immédiatement
+        if (buissonImg.complete) {
+            buissonImg.onload();
         }
     }
 
@@ -216,17 +247,18 @@
     // Lancer la génération et l'animation
     function startLabyrinth() {
         generateMaze(1, 1);
+        setRandomEntranceAndExit(); // Définir l'entrée et la sortie
         drawMaze();
 
         const treasure = placeTreasure();
         const treasureImg = new Image();
-        treasureImg.src = 'gem-regular.svg'; // Assurez-vous d'avoir cette image
+        treasureImg.src = 'gem-regular.svg'; // Image du trésor
 
         treasureImg.onload = function() {
             labyrinthCtx.drawImage(treasureImg, treasure.y * cellSize, treasure.x * cellSize, cellSize, cellSize);
         };
 
-        const path = bfs({x: 1, y: 1}, treasure);
+        const path = bfs({x: entree.x, y: entree.y}, treasure); // L'épée commence à l'entrée
         if (path) animateSwordInMaze(path);
     }
 
