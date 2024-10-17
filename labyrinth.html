@@ -3,261 +3,244 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Labyrinthe avec Entrée et Sortie</title>
+    <title>Carte et Labyrinthe avec trésor</title>
     <style>
-        canvas {
-            border: 1px solid white;
-            position: relative;
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-image: url('kaamelott.jpg'); /* Image de la carte */
+            background-size: cover;
+            background-position: center;
         }
 
-        #container {
-            position: relative;
-            width: 500px;
-            height: 500px;
+        #labyrinthContainer {
+            display: none; /* Cacher le labyrinthe au début */
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 400px;
+            height: 400px;
+            border: 5px solid rgb(241, 183, 75);
+            z-index: 10;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
         }
     </style>
 </head>
-<body style="background-image: url('kaamelott.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; height: 100vh; margin: 0;">
+<body>
 
+<!-- Canvas pour la carte -->
+<canvas id="mapCanvas"></canvas>
 
-<div id="container">
-    <canvas id="canvas" width="500" height="500"></canvas>
+<!-- Canvas pour le labyrinthe -->
+<div id="labyrinthContainer">
+    <canvas id="labyrinthCanvas" width="400" height="400"></canvas>
 </div>
 
 <script>
-    var canvas = document.getElementById("canvas");
-    var context = canvas.getContext("2d");
-    var w = canvas.width;
-    var h = canvas.height; 
-    var delimiter = 23; // Taille du labyrinthe (20 colonnes)
-    var size = w / delimiter;
+    const mapCanvas = document.getElementById("mapCanvas");
+    const mapCtx = mapCanvas.getContext("2d");
+    const labyrinthCanvas = document.getElementById("labyrinthCanvas");
+    const labyrinthCtx = labyrinthCanvas.getContext("2d");
+    
+    const mapWidth = window.innerWidth;
+    const mapHeight = window.innerHeight;
+    mapCanvas.width = mapWidth;
+    mapCanvas.height = mapHeight;
 
-    // Directions (haut, bas, gauche, droite)
-    var directions = [
-        { x: -1, y: 0 },  // Haut
-        { x: 1, y: 0 },   // Bas
-        { x: 0, y: -1 },  // Gauche
-        { x: 0, y: 1 }    // Droite
-    ];
+    const rows = 23;
+    const cols = 23;
+    const cellSize = 400 / rows;
+    const directions = [{x: 0, y: -1}, {x: 1, y: 0}, {x: 0, y: 1}, {x: -1, y: 0}]; // haut, droite, bas, gauche
 
-    // Génération du labyrinthe avec des bords solides
-    function generateMaze(width, height) {
-        let maze = Array(height).fill().map(() => Array(width).fill(1)); // Rempli avec des murs (1)
+    let maze = Array(rows).fill().map(() => Array(cols).fill(1)); // 1 = mur, 0 = chemin
+    let visited = Array(rows).fill().map(() => Array(cols).fill(false));
 
-        // Fonction pour vérifier si une cellule est dans les limites intérieures
-        function isInBounds(x, y) {
-            return x > 0 && x < height - 1 && y > 0 && y < width - 1;
-        }
+    const kaamelott = { x: 1070, y: 520 };
+    const labyrintheEntree = { x: 850, y: 150 };
 
-        // Commencer avec une cellule aléatoire dans les limites intérieures
-        let startX = Math.floor(Math.random() * (height - 2)) + 1;
-        let startY = Math.floor(Math.random() * (width - 2)) + 1;
-        maze[startX][startY] = 0; // Démarre avec un chemin (0)
+    // Générer un labyrinthe avec l'algorithme de backtracking
+    function generateMaze(x, y) {
+        visited[x][y] = true;
+        maze[x][y] = 0;
 
-        let walls = [];
-        for (let dir of directions) {
-            let newX = startX + dir.x;
-            let newY = startY + dir.y;
-            if (isInBounds(newX, newY)) {
-                walls.push({ x: newX, y: newY, dir });
+        directions.sort(() => Math.random() - 0.5); // Mélanger les directions
+
+        for (let i = 0; i < directions.length; i++) {
+            const dx = directions[i].x;
+            const dy = directions[i].y;
+
+            const nx = x + dx * 2;
+            const ny = y + dy * 2;
+
+            if (nx > 0 && nx < rows && ny > 0 && ny < cols && !visited[nx][ny]) {
+                maze[x + dx][y + dy] = 0; // Casser le mur entre les deux cellules
+                generateMaze(nx, ny);
             }
         }
+    }
 
-        // Étendre les chemins
-        while (walls.length > 0) {
-            let wallIndex = Math.floor(Math.random() * walls.length);
-            let wall = walls[wallIndex];
-            walls.splice(wallIndex, 1); // Retirer le mur actuel de la liste
+    // Dessiner les points sur la carte
+    function drawMapPoints() {
+        drawPoint(mapCtx, kaamelott.x, kaamelott.y, 'Kaamelott', 'black');
+        drawPoint(mapCtx, labyrintheEntree.x, labyrintheEntree.y, 'Entrée du Labyrinthe', 'green');
+    }
 
-            let nx = wall.x + wall.dir.x;
-            let ny = wall.y + wall.dir.y;
+    // Fonction pour dessiner des points
+    function drawPoint(ctx, x, y, label, color) {
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, Math.PI * 2, true);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.font = "16px Arial";
+        ctx.fillText(label, x + 15, y);
+    }
 
-            // Vérifier si la nouvelle position est dans les limites intérieures et non encore visitée
-            if (isInBounds(nx, ny) && maze[nx][ny] === 1) {
-                maze[wall.x][wall.y] = 0;
-                maze[nx][ny] = 0; // Créer un chemin
+    // Animer l'épée sur la carte
+    function animateSwordOnMap(callback) {
+        const path = getPath(kaamelott, labyrintheEntree);
+        let i = 0;
 
-                // Ajouter les nouveaux murs autour de la cellule ouverte
-                for (let dir of directions) {
-                    let newWallX = nx + dir.x;
-                    let newWallY = ny + dir.y;
-                    if (isInBounds(newWallX, newWallY) && maze[newWallX][newWallY] === 1) {
-                        walls.push({ x: newWallX, y: newWallY, dir });
-                    }
+        const swordImg = new Image();
+        swordImg.src = 'sword.png'; // Assurez-vous d'avoir cette image
+        swordImg.onload = function() {
+            const interval = setInterval(() => {
+                if (i > 0) {
+                    const prev = path[i - 1];
+                    mapCtx.clearRect(prev.x - 10, prev.y - 10, 30, 30); // Effacer l'épée précédente
+                    drawMapPoints(); // Redessiner les points
                 }
-            }
-        }
 
-        return maze;
+                const current = path[i];
+                mapCtx.drawImage(swordImg, current.x - 10, current.y - 10, 20, 20); // Dessiner l'épée
+
+                i++;
+                if (i >= path.length) {
+                    clearInterval(interval);
+                    if (callback) callback(); // Une fois arrivé, afficher le labyrinthe
+                }
+            }, 200); // Vitesse de déplacement
+        };
     }
 
-    // Ajouter des bords solides tout autour du labyrinthe
-    function addBorders(maze) {
-        let height = maze.length;
-        let width = maze[0].length;
+    // Calculer un chemin simple entre deux points (ligne droite)
+    function getPath(start, end) {
+        const path = [];
+        const steps = 20; // Nombre de points intermédiaires
 
-        for (let i = 0; i < height; i++) {
-            maze[i][0] = 1; // Bord gauche
-            maze[i][width - 1] = 1; // Bord droit
+        for (let i = 0; i <= steps; i++) {
+            const x = start.x + (end.x - start.x) * (i / steps);
+            const y = start.y + (end.y - start.y) * (i / steps);
+            path.push({ x, y });
         }
-        for (let j = 0; j < width; j++) {
-            maze[0][j] = 1; // Bord haut
-            maze[height - 1][j] = 1; // Bord bas
-        }
+        return path;
     }
 
-    // Placer une entrée et une sortie aléatoire sur les bords du labyrinthe
-    function placeEntryAndExit(maze) {
-        let height = maze.length;
-        let width = maze[0].length;
-
-        // Entrée
-        let entryEdge = Math.floor(Math.random() * 4);  // Choisir un bord aléatoire pour l'entrée
-        let entry = placeOnEdge(entryEdge, height, width, maze);
-        
-        // Sortie sur un autre bord
-        let exitEdge;
+    // Placer le trésor dans une cellule aléatoire
+    function placeTreasure() {
+        let treasureX, treasureY;
         do {
-            exitEdge = Math.floor(Math.random() * 4);
-        } while (exitEdge === entryEdge);  // S'assurer que l'entrée et la sortie ne sont pas sur le même bord
-
-        let exit = placeOnEdge(exitEdge, height, width, maze);
-
-        return { entry, exit };
+            treasureX = Math.floor(Math.random() * rows);
+            treasureY = Math.floor(Math.random() * cols);
+        } while (maze[treasureX][treasureY] === 1); // Ne placer que dans les chemins
+        return {x: treasureX, y: treasureY};
     }
 
-    // Placer un point d'entrée ou de sortie sur un bord
-    function placeOnEdge(edge, height, width, maze) {
-        let pos;
-        switch (edge) {
-            case 0: // Bord haut
-                pos = { x: 0, y: Math.floor(Math.random() * (width - 2)) + 1 };
-                maze[1][pos.y] = 0; // Ouvrir juste en dessous pour avoir un passage
-                break;
-            case 1: // Bord bas
-                pos = { x: height - 1, y: Math.floor(Math.random() * (width - 2)) + 1 };
-                maze[height - 2][pos.y] = 0; // Ouvrir juste au-dessus pour avoir un passage
-                break;
-            case 2: // Bord gauche
-                pos = { x: Math.floor(Math.random() * (height - 2)) + 1, y: 0 };
-                maze[pos.x][1] = 0; // Ouvrir juste à droite pour avoir un passage
-                break;
-            case 3: // Bord droit
-                pos = { x: Math.floor(Math.random() * (height - 2)) + 1, y: width - 1 };
-                maze[pos.x][width - 2] = 0; // Ouvrir juste à gauche pour avoir un passage
-                break;
-        }
-        return pos;
-    }
-
-    // Fonction pour dessiner le labyrinthe
-    function drawMaze(maze) {
-        for (let i = 0; i < maze.length; i++) {
-            for (let j = 0; j < maze[i].length; j++) {
-                rect(j * size, i * size, size, size, maze[i][j] === 1 ? "green" : "white");
-            }
-        }
-    }
-
-    // Fonction pour dessiner un rectangle
-    function rect(x, y, w, h, color) {
-        context.fillStyle = color;
-        context.fillRect(x, y, w, h);
-    }
-
-    // Générer une position aléatoire dans le labyrinthe
-    function randomPosition(maze) {
-        let x, y;
-        do {
-            x = Math.floor(Math.random() * maze.length);
-            y = Math.floor(Math.random() * maze[0].length);
-        } while (maze[x][y] !== 0); // Trouver une position dans un espace vide
-        return { x: x, y: y };
-    }
-
-    // Algorithme BFS pour trouver le chemin
-    function bfs(maze, start, goal) {
-        let queue = [{ pos: start, path: [start] }];
-        let visited = Array(maze.length).fill().map(() => Array(maze[0].length).fill(false));
+    // Trouver le chemin le plus court avec BFS
+    function bfs(start, goal) {
+        let queue = [{pos: start, path: [start]}];
+        let visited = Array(rows).fill().map(() => Array(cols).fill(false));
         visited[start.x][start.y] = true;
 
         while (queue.length > 0) {
-            let { pos, path } = queue.shift();
+            let {pos, path} = queue.shift();
 
-            // Si le but (trésor) est atteint
             if (pos.x === goal.x && pos.y === goal.y) {
                 return path;
             }
 
-            // Explore les voisins
-            for (let dir of directions) {
-                let newX = pos.x + dir.x;
-                let newY = pos.y + dir.y;
+            for (let d of directions) {
+                let newX = pos.x + d.x;
+                let newY = pos.y + d.y;
 
-                // Vérifier les limites et si la case est visitable
-                if (newX >= 0 && newX < maze.length && newY >= 0 && newY < maze[0].length &&
-                    maze[newX][newY] === 0 && !visited[newX][newY]) {
-                    
+                if (newX >= 0 && newY >= 0 && newX < rows && newY < cols && !visited[newX][newY] && maze[newX][newY] === 0) {
                     visited[newX][newY] = true;
-                    queue.push({ pos: { x: newX, y: newY }, path: [...path, { x: newX, y: newY }] });
+                    queue.push({pos: {x: newX, y: newY}, path: [...path, {x: newX, y: newY}]});
                 }
             }
         }
-        return null; // Si aucun chemin trouvé
+        return null; // Aucun chemin trouvé
     }
 
-    // Fonction pour animer le chemin avec une image (ex: sword.png)
-    function animateSword(path) {
-        let i = 0;
-        let interval = setInterval(() => {
-            if (i > 0) {
-                let prevPos = path[i - 1];
-                rect(prevPos.y * size, prevPos.x * size, size, size, "white"); // Réinitialiser la case précédente
+    // Dessiner le labyrinthe
+    function drawMaze() {
+        labyrinthCtx.clearRect(0, 0, labyrinthCanvas.width, labyrinthCanvas.height);
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                labyrinthCtx.fillStyle = maze[i][j] === 1 ? "green" : "white";
+                labyrinthCtx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
             }
-
-            let currentPos = path[i];
-            context.drawImage(swordImg, currentPos.y * size, currentPos.x * size, size * 0.8, size * 0.8); // Dessiner l'image à la nouvelle position
-
-            i++;
-            if (i >= path.length) {
-                clearInterval(interval); // Arrêter l'animation une fois terminé
-            }
-        }, 200); // Déplacement toutes les 200ms
-    }
-
-    // Charger l'image de l'épée
-    var swordImg = new Image();
-    swordImg.src = 'sword.png'; // Chemin vers votre fichier sword.png
-
-    // Générer le labyrinthe et dessiner
-    var maze = generateMaze(delimiter, delimiter);
-    addBorders(maze);  // Ajout des bords après génération du labyrinthe
-    drawMaze(maze);
-
-    // Placer une entrée et une sortie
-    var { entry, exit } = placeEntryAndExit(maze);
-
-    // Choisir une position aléatoire pour le trésor
-    var treasurePosition = randomPosition(maze);
-
-    // Dessiner le trésor
-    var treasureImg = new Image();
-    treasureImg.src = 'gem-regular.svg'; // Chemin vers votre image SVG du trésor
-    treasureImg.onload = function() {
-        context.drawImage(treasureImg, treasurePosition.y * size, treasurePosition.x * size, size * 0.8, size * 0.8);
-    };
-
-    // Trouver le chemin avec BFS entre l'entrée et la sortie (ou le trésor)
-    var pathToTreasure = bfs(maze, entry, treasurePosition);
-
-    // Si un chemin est trouvé, animer l'épée
-    swordImg.onload = function() {
-        if (pathToTreasure) {
-            animateSword(pathToTreasure);
-        } else {
-            console.log("Aucun chemin trouvé vers le trésor.");
         }
-    };
+    }
+
+    // Animer l'épée sur le chemin trouvé dans le labyrinthe
+    function animateSwordInMaze(path) {
+        let i = 0;
+        const swordImg = new Image();
+        swordImg.src = 'sword.png';
+
+        swordImg.onload = function() {
+            const interval = setInterval(() => {
+                if (i > 0) {
+                    let prev = path[i - 1];
+                    labyrinthCtx.clearRect(prev.y * cellSize, prev.x * cellSize, cellSize, cellSize);
+                    labyrinthCtx.fillStyle = "white";
+                    labyrinthCtx.fillRect(prev.y * cellSize, prev.x * cellSize, cellSize, cellSize);
+                }
+
+                let current = path[i];
+                labyrinthCtx.drawImage(swordImg, current.y * cellSize, current.x * cellSize, cellSize, cellSize);
+
+                i++;
+                if (i >= path.length) clearInterval(interval);
+            }, 200);
+        };
+    }
+
+    // Lancer la génération et l'animation
+    function startLabyrinth() {
+        generateMaze(1, 1);
+        drawMaze();
+
+        const treasure = placeTreasure();
+        const treasureImg = new Image();
+        treasureImg.src = 'gem-regular.svg'; // Assurez-vous d'avoir cette image
+
+        treasureImg.onload = function() {
+            labyrinthCtx.drawImage(treasureImg, treasure.y * cellSize, treasure.x * cellSize, cellSize, cellSize);
+        };
+
+        const path = bfs({x: 1, y: 1}, treasure);
+        if (path) animateSwordInMaze(path);
+    }
+
+    // Animer la carte et afficher le labyrinthe à l'arrivée
+    function startAnimation() {
+        animateSwordOnMap(() => {
+            document.getElementById('labyrinthContainer').style.display = 'block';
+            startLabyrinth();
+        });
+    }
+
+    // Démarrer le jeu
+    drawMapPoints();
+    startAnimation();
 
 </script>
 
