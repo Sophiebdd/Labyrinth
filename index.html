@@ -71,6 +71,7 @@
 
     let entree = {x: 0, y: 0}; // Coordonnées de l'entrée
     let sortie = {x: 0, y: 0}; // Coordonnées de la sortie
+    let treasure = null; // Position du trésor
 
     // Générer un labyrinthe avec l'algorithme de backtracking
     function generateMaze(x, y) {
@@ -138,13 +139,8 @@
     }
 
     // Animer l'épée sur la carte
-    function animateSwordOnMap(callback) {
-        const kaamelottX = kaamelott.x * mapCanvas.width;
-        const kaamelottY = kaamelott.y * mapCanvas.height;
-        const labyrintheEntreeX = labyrintheEntree.x * mapCanvas.width;
-        const labyrintheEntreeY = labyrintheEntree.y * mapCanvas.height;
-
-        const path = getPath({x: kaamelottX, y: kaamelottY}, {x: labyrintheEntreeX, y: labyrintheEntreeY});
+    function animateSwordOnMap(callback, start, end) {
+        const path = getPath(start, end);
         let i = 0;
 
         const swordImg = new Image();
@@ -243,7 +239,7 @@
     }
 
     // Animer l'épée sur le chemin trouvé dans le labyrinthe
-    function animateSwordInMaze(path) {
+    function animateSwordInMaze(path, callback) {
         let i = 0;
         const swordImg = new Image();
         swordImg.src = 'perso.png';
@@ -261,9 +257,35 @@
                 labyrinthCtx.drawImage(swordImg, current.y * cellSize, current.x * cellSize, cellSize, cellSize);
 
                 i++;
-                if (i >= path.length) clearInterval(interval);
+                if (i >= path.length) {
+                    clearInterval(interval);
+                    if (callback) callback();
+                }
             }, 200);
         };
+    }
+
+    // Animation après avoir trouvé le trésor : sortie du labyrinthe et retour à Kaamelott
+    function finishLabyrinth() {
+        const pathToExit = bfs({x: treasure.x, y: treasure.y}, {x: sortie.x, y: sortie.y});
+
+        if (pathToExit) {
+            animateSwordInMaze(pathToExit, () => {
+                // Après avoir atteint la sortie, retourner sur la carte
+                document.getElementById('labyrinthContainer').style.display = 'none';
+
+                // Faire le chemin retour sur la carte
+                const labyrintheEntreeX = labyrintheEntree.x * mapCanvas.width;
+                const labyrintheEntreeY = labyrintheEntree.y * mapCanvas.height;
+                const kaamelottX = kaamelott.x * mapCanvas.width;
+                const kaamelottY = kaamelott.y * mapCanvas.height;
+
+                animateSwordOnMap(() => {
+                    // Retour à Kaamelott terminé
+                    console.log('Retour à Kaamelott terminé');
+                }, {x: labyrintheEntreeX, y: labyrintheEntreeY}, {x: kaamelottX, y: kaamelottY});
+            });
+        }
     }
 
     // Lancer la génération et l'animation
@@ -272,7 +294,7 @@
         setRandomEntranceAndExit(); // Définir l'entrée et la sortie
         drawMaze();
 
-        const treasure = placeTreasure();
+        treasure = placeTreasure();
         const treasureImg = new Image();
         treasureImg.src = 'gem-regular.svg'; // Image du trésor
 
@@ -281,15 +303,26 @@
         };
 
         const path = bfs({x: entree.x, y: entree.y}, treasure); // L'épée commence à l'entrée
-        if (path) animateSwordInMaze(path);
+        if (path) {
+            animateSwordInMaze(path, () => {
+                // Supprimer le trésor après l'avoir trouvé
+                labyrinthCtx.clearRect(treasure.y * cellSize, treasure.x * cellSize, cellSize, cellSize);
+                finishLabyrinth(); // Sortir du labyrinthe et revenir à Kaamelott
+            });
+        }
     }
 
     // Animer la carte et afficher le labyrinthe à l'arrivée
     function startAnimation() {
+        const kaamelottX = kaamelott.x * mapCanvas.width;
+        const kaamelottY = kaamelott.y * mapCanvas.height;
+        const labyrintheEntreeX = labyrintheEntree.x * mapCanvas.width;
+        const labyrintheEntreeY = labyrintheEntree.y * mapCanvas.height;
+
         animateSwordOnMap(() => {
             document.getElementById('labyrinthContainer').style.display = 'block';
             startLabyrinth();
-        });
+        }, {x: kaamelottX, y: kaamelottY}, {x: labyrintheEntreeX, y: labyrintheEntreeY});
     }
 
     // Redimensionner le canvas et redessiner les points
