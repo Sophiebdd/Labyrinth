@@ -10,7 +10,7 @@
             padding: 0;
             height: 100%;
             overflow: hidden;
-            background-image: url('kaamelott.jpg'); /* Image de la carte */
+            background-image: url('map.jpg'); /* Image de la carte */
             background-size: cover;
             background-position: center;
         }
@@ -18,8 +18,9 @@
         #labyrinthContainer {
             display: none; /* Cacher le labyrinthe au début */
             position: absolute;
-            top: 50px;
-            left: 50px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             width: 400px;
             height: 400px;
             z-index: 10;
@@ -61,8 +62,8 @@
     let maze = Array(rows).fill().map(() => Array(cols).fill(1)); // 1 = mur, 0 = chemin
     let visited = Array(rows).fill().map(() => Array(cols).fill(false));
 
-    const kaamelott = { x: 1070, y: 520 };
-    const labyrintheEntree = { x: 850, y: 150 };
+    const kaamelott = { x: 1460, y: 895 };
+    const labyrintheEntree = { x: 150, y: 50 };
 
     const buissonImg = new Image();
     buissonImg.src = 'buisson.png'; // Image pour les murs
@@ -106,8 +107,8 @@
 
     // Dessiner les points sur la carte
     function drawMapPoints() {
-        drawPoint(mapCtx, kaamelott.x, kaamelott.y, 'Kaamelott', 'black');
-        drawPoint(mapCtx, labyrintheEntree.x, labyrintheEntree.y, 'Entrée du Labyrinthe', 'green');
+        drawPoint(mapCtx, kaamelott.x, kaamelott.y, 'Kaamelott', 'green');
+        drawPoint(mapCtx, labyrintheEntree.x, labyrintheEntree.y, 'Labyrinthe', 'green');
     }
 
     // Fonction pour dessiner des points
@@ -126,17 +127,17 @@
         let i = 0;
 
         const swordImg = new Image();
-        swordImg.src = 'sword.png'; // Assurez-vous d'avoir cette image
+        swordImg.src = 'perso.png'; // Assurez-vous d'avoir cette image
         swordImg.onload = function() {
             const interval = setInterval(() => {
                 if (i > 0) {
                     const prev = path[i - 1];
-                    mapCtx.clearRect(prev.x - 10, prev.y - 10, 30, 30); // Effacer l'épée précédente
+                    mapCtx.clearRect(prev.x - 20, prev.y - 20, 60, 60); // Effacer l'épée précédente
                     drawMapPoints(); // Redessiner les points
                 }
 
                 const current = path[i];
-                mapCtx.drawImage(swordImg, current.x - 10, current.y - 10, 20, 20); // Dessiner l'épée
+                mapCtx.drawImage(swordImg, current.x - 20, current.y - 20, 60, 60); // Dessiner l'épée
 
                 i++;
                 if (i >= path.length) {
@@ -224,7 +225,7 @@
     function animateSwordInMaze(path) {
         let i = 0;
         const swordImg = new Image();
-        swordImg.src = 'sword.png';
+        swordImg.src = 'perso.png';
 
         swordImg.onload = function() {
             const interval = setInterval(() => {
