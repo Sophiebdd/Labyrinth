@@ -62,8 +62,9 @@
     let maze = Array(rows).fill().map(() => Array(cols).fill(1)); // 1 = mur, 0 = chemin
     let visited = Array(rows).fill().map(() => Array(cols).fill(false));
 
-    const kaamelott = { x: 1460, y: 895 };
-    const labyrintheEntree = { x: 150, y: 50 };
+    // Proportions basées sur la taille de la carte (ajuste les positions de façon relative)
+    const kaamelott = { x: 1460 / 1920, y: 895 / 1080 }; // Coordonnées relatives
+    const labyrintheEntree = { x: 150 / 1920, y: 50 / 1080 }; // Coordonnées relatives
 
     const buissonImg = new Image();
     buissonImg.src = 'buisson.png'; // Image pour les murs
@@ -92,7 +93,7 @@
         }
     }
 
-    // Placer l'entrée et la sortie du labyrinthe de manière aléatoire
+    // Placer l'entrée et la sortie du labyrinthe de manière aléatoire, et dégager autour
     function setRandomEntranceAndExit() {
         // Entrée aléatoire sur le premier rang
         entree.x = 0;
@@ -103,12 +104,27 @@
         sortie.x = rows - 1;
         sortie.y = Math.floor(Math.random() * cols);
         maze[sortie.x][sortie.y] = 0; // Pas de mur à la sortie
+
+        // Dégager les cases autour de l'entrée
+        if (entree.y > 0) maze[entree.x][entree.y - 1] = 0; // Case à gauche
+        if (entree.y < cols - 1) maze[entree.x][entree.y + 1] = 0; // Case à droite
+        if (entree.x < rows - 1) maze[entree.x + 1][entree.y] = 0; // Case en dessous
+
+        // Dégager les cases autour de la sortie
+        if (sortie.y > 0) maze[sortie.x][sortie.y - 1] = 0; // Case à gauche
+        if (sortie.y < cols - 1) maze[sortie.x][sortie.y + 1] = 0; // Case à droite
+        if (sortie.x > 0) maze[sortie.x - 1][sortie.y] = 0; // Case au dessus
     }
 
     // Dessiner les points sur la carte
     function drawMapPoints() {
-        drawPoint(mapCtx, kaamelott.x, kaamelott.y, 'Kaamelott', 'green');
-        drawPoint(mapCtx, labyrintheEntree.x, labyrintheEntree.y, 'Labyrinthe', 'green');
+        const kaamelottX = kaamelott.x * mapCanvas.width;
+        const kaamelottY = kaamelott.y * mapCanvas.height;
+        const labyrintheEntreeX = labyrintheEntree.x * mapCanvas.width;
+        const labyrintheEntreeY = labyrintheEntree.y * mapCanvas.height;
+
+        drawPoint(mapCtx, kaamelottX, kaamelottY, 'Kaamelott', 'green');
+        drawPoint(mapCtx, labyrintheEntreeX, labyrintheEntreeY, 'Labyrinthe', 'green');
     }
 
     // Fonction pour dessiner des points
@@ -123,7 +139,12 @@
 
     // Animer l'épée sur la carte
     function animateSwordOnMap(callback) {
-        const path = getPath(kaamelott, labyrintheEntree);
+        const kaamelottX = kaamelott.x * mapCanvas.width;
+        const kaamelottY = kaamelott.y * mapCanvas.height;
+        const labyrintheEntreeX = labyrintheEntree.x * mapCanvas.width;
+        const labyrintheEntreeY = labyrintheEntree.y * mapCanvas.height;
+
+        const path = getPath({x: kaamelottX, y: kaamelottY}, {x: labyrintheEntreeX, y: labyrintheEntreeY});
         let i = 0;
 
         const swordImg = new Image();
@@ -270,6 +291,13 @@
             startLabyrinth();
         });
     }
+
+    // Redimensionner le canvas et redessiner les points
+    window.addEventListener('resize', () => {
+        mapCanvas.width = window.innerWidth;
+        mapCanvas.height = window.innerHeight;
+        drawMapPoints(); // Redessiner les points après redimensionnement
+    });
 
     // Démarrer le jeu
     drawMapPoints();
